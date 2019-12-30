@@ -68,6 +68,7 @@ def read_image(file_name, depth_file_name, format=None, use_depth=False):
         if use_depth:
             # Load depth image
             depth_channel = Image.open(depth_file_name)
+            depth_channel = np.expand_dims(depth_channel, -1)
             image = np.concatenate((image, depth_channel), axis=2)
             print(image.shape)
         return image
