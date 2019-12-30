@@ -38,6 +38,7 @@ _C.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675]
 # std has been absorbed into its conv1 weights, so the std needs to be set 1.
 # Otherwise, you can use [57.375, 57.120, 58.395] (ImageNet std)
 _C.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
+_C.MODEL.INPUT_CHANNELS = 3
 
 
 # -----------------------------------------------------------------------------
@@ -78,6 +79,7 @@ _C.INPUT.FORMAT = "BGR"
 # The ground truth mask format that the model will use.
 # Mask R-CNN supports either "polygon" or "bitmask" as ground truth.
 _C.INPUT.MASK_FORMAT = "polygon"  # alternative: "bitmask"
+_C.INPUT.USE_DEPTH = False
 
 
 # -----------------------------------------------------------------------------

@@ -31,7 +31,7 @@ class SizeMismatchError(ValueError):
     """
 
 
-def read_image(file_name, format=None):
+def read_image(file_name, depth_file_name, format=None, use_depth=False):
     """
     Read an image into the given format.
     Will apply rotation and flipping if the image has such exif information.
@@ -65,6 +65,10 @@ def read_image(file_name, format=None):
         # PIL squeezes out the channel dimension for "L", so make it HWC
         if format == "L":
             image = np.expand_dims(image, -1)
+        if use_depth:
+            # Load depth image
+            depth_channel = Image.open(depth_file_name)
+            image.putalpha(depth_channel)
         return image
 
 

@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 __all__ = ["load_coco_json", "load_sem_seg"]
 
 
-def load_coco_json(json_file, image_root, dataset_name=None, extra_annotation_keys=None):
+def load_coco_json(json_file, image_root, dataset_name=None, extra_annotation_keys=None, depth_root=None):
     """
     Load a json file with COCO's instances annotation format.
     Currently supports instance detection, instance segmentation,
@@ -137,6 +137,10 @@ Category ids in annotations are not in [1, #categories]! We'll apply a mapping f
     for (img_dict, anno_dict_list) in imgs_anns:
         record = {}
         record["file_name"] = os.path.join(image_root, img_dict["file_name"])
+        if depth_root is not None:
+            record["depth_name"] = os.path.join(depth_root, img_dict["file_name"])
+        else:
+            record["depth_name"] = None
         record["height"] = img_dict["height"]
         record["width"] = img_dict["width"]
         image_id = record["image_id"] = img_dict["id"]
@@ -417,7 +421,7 @@ if __name__ == "__main__":
 
     Usage:
         python -m detectron2.data.datasets.coco \
-            path/to/json path/to/image_root dataset_name
+            path/to/json path/to/image_root dataset_name path/to/depth_root
 
         "dataset_name" can be "coco_2014_minival_100", or other
         pre-registered ones
@@ -431,7 +435,7 @@ if __name__ == "__main__":
     assert sys.argv[3] in DatasetCatalog.list()
     meta = MetadataCatalog.get(sys.argv[3])
 
-    dicts = load_coco_json(sys.argv[1], sys.argv[2], sys.argv[3])
+    dicts = load_coco_json(sys.argv[1], sys.argv[2], sys.argv[3], depth_root=sys.argv[4])
     logger.info("Done loading {} samples.".format(len(dicts)))
 
     dirname = "coco-data-vis"

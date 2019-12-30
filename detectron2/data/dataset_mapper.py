@@ -46,6 +46,7 @@ class DatasetMapper:
         self.mask_format    = cfg.INPUT.MASK_FORMAT
         self.keypoint_on    = cfg.MODEL.KEYPOINT_ON
         self.load_proposals = cfg.MODEL.LOAD_PROPOSALS
+        self.use_depth = cfg.INPUT.USE_DEPTH
         # fmt: on
         if self.keypoint_on and is_train:
             # Flip only makes sense in training
@@ -72,7 +73,7 @@ class DatasetMapper:
         """
         dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
         # USER: Write your own image loading if it's not from a file
-        image = utils.read_image(dataset_dict["file_name"], format=self.img_format)
+        image = utils.read_image(dataset_dict["file_name"], dataset_dict['depth_name'], format=self.img_format, use_depth=self.use_depth)
         utils.check_image_size(dataset_dict, image)
 
         if "annotations" not in dataset_dict:
