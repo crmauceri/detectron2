@@ -5,7 +5,6 @@
 import numpy as np
 from fvcore.transforms.transform import HFlipTransform, NoOpTransform, Transform
 from PIL import Image
-
 __all__ = ["ExtentTransform", "ResizeTransform"]
 
 
@@ -78,10 +77,14 @@ class ResizeTransform(Transform):
 
     def apply_image(self, img, interp=None):
         assert img.shape[:2] == (self.h, self.w)
-        pil_image = Image.fromarray(img)
+        if img.shape[2] == 4:
+            pil_image = Image.fromarray(img, 'RGBA')
+        else:
+            pil_image = Image.fromarray(img)
         interp_method = interp if interp is not None else self.interp
         pil_image = pil_image.resize((self.new_w, self.new_h), interp_method)
         ret = np.asarray(pil_image)
+
         return ret
 
     def apply_coords(self, coords):

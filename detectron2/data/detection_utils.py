@@ -59,9 +59,9 @@ def read_image(file_name, depth_file_name, format=None, use_depth=False):
                 conversion_format = "RGB"
             image = image.convert(conversion_format)
         image = np.asarray(image)
-        if format == "BGR":
-            # flip channels if needed
-            image = image[:, :, ::-1]
+        # if format == "BGR":
+        #     # flip channels if needed
+        #     image = image[:, :, ::-1]
         # PIL squeezes out the channel dimension for "L", so make it HWC
         if format == "L":
             image = np.expand_dims(image, -1)

@@ -137,10 +137,14 @@ Category ids in annotations are not in [1, #categories]! We'll apply a mapping f
     for (img_dict, anno_dict_list) in imgs_anns:
         record = {}
         record["file_name"] = os.path.join(image_root, img_dict["file_name"])
-        if depth_root is not None:
-            record["depth_name"] = os.path.join(depth_root, img_dict["file_name"])
+
+        if "depth_file_name" in img_dict:
+            record["depth_file_name"] = os.path.join(depth_root, img_dict["depth_file_name"])
+        elif depth_root is not None:
+            record["depth_file_name"] = os.path.join(depth_root, img_dict["file_name"])
         else:
-            record["depth_name"] = None
+            record["depth_file_name"] = None
+
         record["height"] = img_dict["height"]
         record["width"] = img_dict["width"]
         image_id = record["image_id"] = img_dict["id"]

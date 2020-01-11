@@ -9,7 +9,7 @@ from collections import defaultdict
 import cv2
 import tqdm
 from fvcore.common.file_io import PathManager
-import six 
+import six
 
 from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.structures import Boxes, BoxMode, Instances
