@@ -18,7 +18,7 @@ from fvcore.transforms.transform import (
 )
 from PIL import Image
 
-from .transform import ExtentTransform, ResizeTransform
+from .transform import ExtentTransform, ResizeTransform, PILToTensor
 
 __all__ = [
     "RandomBrightness",
@@ -30,21 +30,10 @@ __all__ = [
     "RandomLighting",
     "Resize",
     "ResizeShortestEdge",
+    "PILtoNdArray",
     "TransformGen",
     "apply_transform_gens",
 ]
-
-
-def check_dtype(img):
-    assert isinstance(img, np.ndarray), "[TransformGen] Needs an numpy array, but got a {}!".format(
-        type(img)
-    )
-    assert not isinstance(img.dtype, np.integer) or (
-        img.dtype == np.uint8
-    ), "[TransformGen] Got image of type {}, use uint8 or floating points instead!".format(
-        img.dtype
-    )
-    assert img.ndim in [2, 3], img.ndim
 
 
 class TransformGen(metaclass=ABCMeta):
@@ -72,6 +61,18 @@ class TransformGen(metaclass=ABCMeta):
     @abstractmethod
     def get_transform(self, img):
         pass
+
+    @staticmethod
+    def check_type(img):
+        assert isinstance(img, np.ndarray), "[TransformGen] Needs an numpy array, but got a {}!".format(
+            type(img)
+        )
+        assert not isinstance(img.dtype, np.integer) or (
+                img.dtype == np.uint8
+        ), "[TransformGen] Got image of type {}, use uint8 or floating points instead!".format(
+            img.dtype
+        )
+        assert img.ndim in [2, 3], img.ndim
 
     def _rand_range(self, low=1.0, high=None, size=None):
         """
@@ -189,8 +190,12 @@ class ResizeShortestEdge(TransformGen):
             short_edge_length = (short_edge_length, short_edge_length)
         self._init(locals())
 
+    @staticmethod
+    def check_type(img):
+        ResizeTransform.check_type(img)
+
     def get_transform(self, img):
-        h, w = img.shape[:2]
+        h, w = img.size
 
         if self.is_range:
             size = np.random.randint(self.short_edge_length[0], self.short_edge_length[1] + 1)
@@ -282,8 +287,11 @@ class RandomExtent(TransformGen):
         super().__init__()
         self._init(locals())
 
+    def check_type(img):
+        ExtentTransform.check_type(img)
+
     def get_transform(self, img):
-        img_h, img_w = img.shape[:2]
+        img_h, img_w = img.size
 
         # Initialize src_rect to fit the input image.
         src_rect = np.array([-0.5 * img_w, -0.5 * img_h, 0.5 * img_w, 0.5 * img_h])
@@ -412,8 +420,16 @@ class RandomLighting(TransformGen):
             src_image=self.eigen_vecs.dot(weights * self.eigen_vals), src_weight=1.0, dst_weight=1.0
         )
 
+class PILtoNdArray(TransformGen):
+    @staticmethod
+    def check_type(img):
+        PILToTensor.check_type(img)
 
-def apply_transform_gens(transform_gens, img):
+    def get_transform(self, img):
+        return PILToTensor()
+
+
+def apply_transform_gens(transform_gens, img, depth_channel=None):
     """
     Apply a list of :class:`TransformGen` on the input image, and
     returns the transformed image and a list of transforms.
@@ -434,14 +450,16 @@ def apply_transform_gens(transform_gens, img):
     for g in transform_gens:
         assert isinstance(g, TransformGen), g
 
-    check_dtype(img)
-
     tfms = []
     for g in transform_gens:
+        g.check_type(img)
         tfm = g.get_transform(img)
+
         assert isinstance(
             tfm, Transform
         ), "TransformGen {} must return an instance of Transform! Got {} instead".format(g, tfm)
         img = tfm.apply_image(img)
+        if depth_channel is not None:
+            depth_channel = tfm.apply_image(depth_channel)
         tfms.append(tfm)
-    return img, TransformList(tfms)
+    return img, depth_channel, TransformList(tfms)
