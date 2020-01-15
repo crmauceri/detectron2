@@ -38,6 +38,7 @@ from detectron2.utils.collect_env import collect_env_info
 from detectron2.utils.env import seed_all_rng
 from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
 from detectron2.utils.logger import setup_logger
+import detectron2.data.detection_utils as utils
 
 from . import hooks
 from .train_loop import SimpleTrainer
@@ -161,14 +162,12 @@ class DefaultPredictor:
         checkpointer = DetectionCheckpointer(self.model)
         checkpointer.load(cfg.MODEL.WEIGHTS)
 
-        self.transform_gen = T.ResizeShortestEdge(
-            [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST], cfg.INPUT.MAX_SIZE_TEST
-        )
+        self.transform_gen = utils.build_transform_gen(cfg, True)
 
         self.input_format = cfg.INPUT.FORMAT
         assert self.input_format in ["RGB", "BGR"], self.input_format
 
-    def __call__(self, original_image):
+    def __call__(self, original_image, depth_channel=None):
         """
         Args:
             original_image (np.ndarray): an image of shape (H, W, C) (in BGR order).
@@ -182,8 +181,15 @@ class DefaultPredictor:
                 # whether the model expects BGR inputs or RGB
                 original_image = original_image[:, :, ::-1]
             height, width = original_image.size[:2]
-            image = self.transform_gen.get_transform(original_image).apply_image(original_image)
-            
+            image, depth_channel, transforms = T.apply_transform_gens(self.tfm_gens, original_image, depth_channel)
+
+            image = self.toTensor(image)
+            if depth_channel is not None:
+                depth_channel = self.toTensor(depth_channel).float()
+                image = torch.cat((image, depth_channel), 0)
+
+            #image = self.transform_gen.get_transform(original_image).apply_image(original_image)
+
             inputs = {"image": image, "height": height, "width": width}
             predictions = self.model([inputs])[0]
             return predictions
