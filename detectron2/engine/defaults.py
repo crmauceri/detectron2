@@ -181,7 +181,7 @@ class DefaultPredictor:
                 # whether the model expects BGR inputs or RGB
                 original_image = original_image[:, :, ::-1]
             height, width = original_image.size[:2]
-            image, depth_channel, transforms = T.apply_transform_gens(self.tfm_gens, original_image, depth_channel)
+            image, depth_channel, transforms = T.apply_transform_gens(self.transform_gen, original_image, depth_channel)
 
             image = self.toTensor(image)
             if depth_channel is not None:
