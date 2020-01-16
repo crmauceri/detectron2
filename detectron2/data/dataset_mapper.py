@@ -61,6 +61,7 @@ class DatasetMapper:
                 else cfg.DATASETS.PRECOMPUTED_PROPOSAL_TOPK_TEST
             )
         self.is_train = is_train
+        self.use_depth = cfg.INPUT.USE_DEPTH
 
     def __call__(self, dataset_dict):
         """
@@ -72,7 +73,12 @@ class DatasetMapper:
         """
         dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
         # USER: Write your own image loading if it's not from a file
-        image = utils.read_image(dataset_dict["file_name"], format=self.img_format)
+        if self.use_depth:
+            ret = utils.read_image(dataset_dict["file_name"], dataset_dict["depth_file_name"], format=self.img_format, use_depth=self.use_depth)
+        else:
+            ret = utils.read_image(dataset_dict["file_name"], None, format=self.img_format, use_depth=self.use_depth)
+
+        image = ret['image']
         utils.check_image_size(dataset_dict, image)
 
         if "annotations" not in dataset_dict:

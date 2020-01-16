@@ -33,7 +33,7 @@ class SizeMismatchError(ValueError):
     """
 
 
-def read_image(file_name, format=None):
+def read_image(file_name, depth_file_name, format=None, use_depth=False):
     """
     Read an image into the given format.
     Will apply rotation and flipping if the image has such exif information.
@@ -43,7 +43,9 @@ def read_image(file_name, format=None):
         format (str): one of the supported image modes in PIL, or "BGR"
 
     Returns:
-        image (np.ndarray): an HWC image
+        ret (dict):
+            image (np.ndarray): an HWC image
+            depth (np.ndarray): an HW image
     """
     with PathManager.open(file_name, "rb") as f:
         image = Image.open(f)
@@ -67,7 +69,22 @@ def read_image(file_name, format=None):
         # PIL squeezes out the channel dimension for "L", so make it HWC
         if format == "L":
             image = np.expand_dims(image, -1)
-        return image
+
+    ret = {'image': image}
+
+    if use_depth:
+        with PathManager.open(depth_file_name, "rb") as f:
+            depth = Image.open(f)
+
+            # capture and ignore this bug: https://github.com/python-pillow/Pillow/issues/3973
+            try:
+                depth = ImageOps.exif_transpose(depth)
+            except Exception:
+                pass
+
+        ret['depth'] = np.asarray(depth)
+
+    return ret
 
 
 def check_image_size(dataset_dict, image):
