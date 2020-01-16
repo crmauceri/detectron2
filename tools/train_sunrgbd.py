@@ -12,9 +12,8 @@ from PIL import Image
 from detectron2.data.datasets import register_coco_instances
 
 cfg = get_cfg()
-cfg.merge_from_file('configs/COCO-InstanceSegmentation/RGBD_mask_rcnn_R_50_FPN_3x.yaml')
+cfg.merge_from_file('configs/COCO-InstanceSegmentation/RGBD_mask_rcnn_R_50_FPN_3x_sunrgbd.yaml')
 cfg.DATALOADER.NUM_WORKERS = 1
-#cfg.DATASETS.TRAIN = ("sunrgbd_train",)
 
 for d in ["train", "val"]:
     register_coco_instances("sunrgbd_{}".format(d), {}, "/Users/Mauceri/Workspace/SUNRGBD/annotations/instances_{}.json".format(d), "/Users/Mauceri/Workspace/", "/Users/Mauceri/Workspace/")
@@ -36,5 +35,5 @@ for i, sample in enumerate(val_data):
     plt.subplot(1,2,1)
     plt.imshow(im[:,:,0:3])
     plt.subplot(1,2,2)
-    plt.imshow(im[:,:,3])
+    #plt.imshow(im[:,:,3])
     plt.show()
