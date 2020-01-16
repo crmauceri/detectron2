@@ -153,6 +153,34 @@ def transform_proposals(dataset_dict, image_shape, transforms, min_box_side_len,
         proposals.objectness_logits = objectness_logits[:proposal_topk]
         dataset_dict["proposals"] = proposals
 
+from .transforms.transform_gen import check_dtype, Transform
+
+def transform_image(img, transforms):
+    """
+    Apply a list of :class:`TransformGen` on the input image, and
+    returns the transformed image and a list of transforms.
+
+    We cannot simply create and return all transforms without
+    applying it to the image, because a subsequent transform may
+    need the output of the previous one.
+
+    Args:
+        transform_gens (list): list of :class:`TransformGen` instance to
+            be applied.
+        img (ndarray): uint8 or floating point images with 1 or 3 channels.
+
+    Returns:
+        ndarray: the transformed image
+        TransformList: contain the transforms that's used.
+    """
+    check_dtype(img)
+
+    for tfm in transforms.transforms:
+        assert isinstance(
+            tfm, Transform
+        ), "TransformGen {} must return an instance of Transform! Got {} instead".format(g, tfm)
+        img = tfm.apply_image(img)
+    return img
 
 def transform_instance_annotations(
     annotation, transforms, image_size, *, keypoint_hflip_indices=None

@@ -78,35 +78,47 @@ class DatasetMapper:
         else:
             ret = utils.read_image(dataset_dict["file_name"], None, format=self.img_format, use_depth=self.use_depth)
 
-        image = ret['image']
-        utils.check_image_size(dataset_dict, image)
+        utils.check_image_size(dataset_dict, ret['image'])
 
         if "annotations" not in dataset_dict:
-            image, transforms = T.apply_transform_gens(
-                ([self.crop_gen] if self.crop_gen else []) + self.tfm_gens, image
+            ret, transforms = T.apply_transform_gens(
+                ([self.crop_gen] if self.crop_gen else []) + self.tfm_gens, ret['image'], ret['depth']
             )
         else:
             # Crop around an instance if there are instances in the image.
             # USER: Remove if you don't use cropping
             if self.crop_gen:
                 crop_tfm = utils.gen_crop_transform_with_instance(
-                    self.crop_gen.get_crop_size(image.shape[:2]),
-                    image.shape[:2],
+                    self.crop_gen.get_crop_size(ret['image'].shape[:2]),
+                    ret['image'].shape[:2],
                     np.random.choice(dataset_dict["annotations"]),
                 )
-                image = crop_tfm.apply_image(image)
-            image, transforms = T.apply_transform_gens(self.tfm_gens, image)
+                ret['image'] = crop_tfm.apply_image(ret['image'])
+                if self.use_depth:
+                    ret['depth'] = crop_tfm.apply_image(ret['depth'])
+
+            ret['image'], transforms = T.apply_transform_gens(self.tfm_gens, ret['image'])
+            if self.use_depth:
+                ret['depth'] = utils.transform_image(ret['depth'], transforms)
+
             if self.crop_gen:
                 transforms = crop_tfm + transforms
 
-        image_shape = image.shape[:2]  # h, w
+        image_shape = ret['image'].shape[:2]  # h, w
 
         # Pytorch's dataloader is efficient on torch.Tensor due to shared-memory,
         # but not efficient on large generic data structures due to the use of pickle & mp.Queue.
         # Therefore it's important to use torch.Tensor.
-        dataset_dict["image"] = torch.as_tensor(
-            image.transpose(2, 0, 1).astype("float32")
-        ).contiguous()
+        if self.use_depth:
+            image = torch.as_tensor(
+                ret['image'].transpose(2, 0, 1).astype("float32")).contiguous()
+            depth = torch.as_tensor(ret['depth'].astype("float32")).contiguous()
+            depth = depth.unsqueeze(0)
+            dataset_dict['image'] = torch.cat((image, depth), 0)
+        else:
+            dataset_dict["image"] = torch.as_tensor(
+                ret['image'].transpose(2, 0, 1).astype("float32")
+            ).contiguous()
         # Can use uint8 if it turns out to be slow some day
 
         # USER: Remove if you don't use pre-computed proposals.
