@@ -8,7 +8,6 @@ from PIL import Image
 
 from . import detection_utils as utils
 from . import transforms as T
-from torchvision.transforms import ToTensor
 
 """
 This file contains the default mapping that's applied to "dataset dicts".
@@ -47,9 +46,6 @@ class DatasetMapper:
         self.mask_format    = cfg.INPUT.MASK_FORMAT
         self.keypoint_on    = cfg.MODEL.KEYPOINT_ON
         self.load_proposals = cfg.MODEL.LOAD_PROPOSALS
-        self.use_depth = cfg.INPUT.USE_DEPTH
-
-        self.toTensor = ToTensor()
         # fmt: on
         if self.keypoint_on and is_train:
             # Flip only makes sense in training
@@ -76,13 +72,12 @@ class DatasetMapper:
         """
         dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
         # USER: Write your own image loading if it's not from a file
-        image, depth_channel = utils.read_image(dataset_dict["file_name"], dataset_dict['depth_file_name'], format=self.img_format,
-                                 use_depth=self.use_depth)
+        image = utils.read_image(dataset_dict["file_name"], format=self.img_format)
         utils.check_image_size(dataset_dict, image)
 
         if "annotations" not in dataset_dict:
-            image, depth_channel, transforms = T.apply_transform_gens(
-                ([self.crop_gen] if self.crop_gen else []) + self.tfm_gens, image, depth_channel
+            image, transforms = T.apply_transform_gens(
+                ([self.crop_gen] if self.crop_gen else []) + self.tfm_gens, image
             )
         else:
             # Crop around an instance if there are instances in the image.
@@ -93,8 +88,8 @@ class DatasetMapper:
                     image.shape[:2],
                     np.random.choice(dataset_dict["annotations"]),
                 )
-                image, depth_channel = crop_tfm.apply_image(image, depth_channel)
-            image, depth_channel, transforms = T.apply_transform_gens(self.tfm_gens, image, depth_channel)
+                image = crop_tfm.apply_image(image)
+            image, transforms = T.apply_transform_gens(self.tfm_gens, image)
             if self.crop_gen:
                 transforms = crop_tfm + transforms
 
@@ -103,12 +98,9 @@ class DatasetMapper:
         # Pytorch's dataloader is efficient on torch.Tensor due to shared-memory,
         # but not efficient on large generic data structures due to the use of pickle & mp.Queue.
         # Therefore it's important to use torch.Tensor.
-        image = self.toTensor(image)
-        if depth_channel is not None:
-            depth_channel = self.toTensor(depth_channel).float()
-            image = torch.cat((image, depth_channel), 0)
-
-        dataset_dict["image"] = image
+        dataset_dict["image"] = torch.as_tensor(
+            image.transpose(2, 0, 1).astype("float32")
+        ).contiguous()
         # Can use uint8 if it turns out to be slow some day
 
         # USER: Remove if you don't use pre-computed proposals.

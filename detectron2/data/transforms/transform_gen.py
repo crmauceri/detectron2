@@ -14,11 +14,10 @@ from fvcore.transforms.transform import (
     NoOpTransform,
     Transform,
     TransformList,
-    VFlipTransform,
 )
 from PIL import Image
 
-from .transform import ExtentTransform, ResizeTransform, PILToTensor
+from .transform import ExtentTransform, ResizeTransform
 
 __all__ = [
     "RandomBrightness",
@@ -30,10 +29,21 @@ __all__ = [
     "RandomLighting",
     "Resize",
     "ResizeShortestEdge",
-    "PILtoNdArray",
     "TransformGen",
     "apply_transform_gens",
 ]
+
+
+def check_dtype(img):
+    assert isinstance(img, np.ndarray), "[TransformGen] Needs an numpy array, but got a {}!".format(
+        type(img)
+    )
+    assert not isinstance(img.dtype, np.integer) or (
+        img.dtype == np.uint8
+    ), "[TransformGen] Got image of type {}, use uint8 or floating points instead!".format(
+        img.dtype
+    )
+    assert img.ndim in [2, 3], img.ndim
 
 
 class TransformGen(metaclass=ABCMeta):
@@ -61,18 +71,6 @@ class TransformGen(metaclass=ABCMeta):
     @abstractmethod
     def get_transform(self, img):
         pass
-
-    @staticmethod
-    def check_type(img):
-        assert isinstance(img, np.ndarray), "[TransformGen] Needs an numpy array, but got a {}!".format(
-            type(img)
-        )
-        assert not isinstance(img.dtype, np.integer) or (
-                img.dtype == np.uint8
-        ), "[TransformGen] Got image of type {}, use uint8 or floating points instead!".format(
-            img.dtype
-        )
-        assert img.ndim in [2, 3], img.ndim
 
     def _rand_range(self, low=1.0, high=None, size=None):
         """
@@ -115,32 +113,31 @@ class TransformGen(metaclass=ABCMeta):
 
 class RandomFlip(TransformGen):
     """
-    Flip the image horizontally or vertically with the given probability.
+    Flip the image horizontally with the given probability.
+
+    TODO Vertical flip to be implemented.
     """
 
-    def __init__(self, prob=0.5, *, horizontal=True, vertical=False):
+    def __init__(self, prob=0.5):
         """
         Args:
             prob (float): probability of flip.
-            horizontal (boolean): whether to apply horizontal flipping
-            vertical (boolean): whether to apply vertical flipping
         """
+        horiz, vert = True, False
+        # TODO implement vertical flip when we need it
         super().__init__()
 
-        if horizontal and vertical:
+        if horiz and vert:
             raise ValueError("Cannot do both horiz and vert. Please use two Flip instead.")
-        if not horizontal and not vertical:
+        if not horiz and not vert:
             raise ValueError("At least one of horiz or vert has to be True!")
         self._init(locals())
 
     def get_transform(self, img):
-        h, w = img.shape[:2]
+        _, w = img.shape[:2]
         do = self._rand_range() < self.prob
         if do:
-            if self.horizontal:
-                return HFlipTransform(w)
-            elif self.vertical:
-                return VFlipTransform(h)
+            return HFlipTransform(w)
         else:
             return NoOpTransform()
 
@@ -190,12 +187,8 @@ class ResizeShortestEdge(TransformGen):
             short_edge_length = (short_edge_length, short_edge_length)
         self._init(locals())
 
-    @staticmethod
-    def check_type(img):
-        ResizeTransform.check_type(img)
-
     def get_transform(self, img):
-        h, w = img.size
+        h, w = img.shape[:2]
 
         if self.is_range:
             size = np.random.randint(self.short_edge_length[0], self.short_edge_length[1] + 1)
@@ -287,11 +280,8 @@ class RandomExtent(TransformGen):
         super().__init__()
         self._init(locals())
 
-    def check_type(img):
-        ExtentTransform.check_type(img)
-
     def get_transform(self, img):
-        img_h, img_w = img.size
+        img_h, img_w = img.shape[:2]
 
         # Initialize src_rect to fit the input image.
         src_rect = np.array([-0.5 * img_w, -0.5 * img_h, 0.5 * img_w, 0.5 * img_h])
@@ -420,16 +410,8 @@ class RandomLighting(TransformGen):
             src_image=self.eigen_vecs.dot(weights * self.eigen_vals), src_weight=1.0, dst_weight=1.0
         )
 
-class PILtoNdArray(TransformGen):
-    @staticmethod
-    def check_type(img):
-        PILToTensor.check_type(img)
 
-    def get_transform(self, img):
-        return PILToTensor()
-
-
-def apply_transform_gens(transform_gens, img, depth_channel=None):
+def apply_transform_gens(transform_gens, img):
     """
     Apply a list of :class:`TransformGen` on the input image, and
     returns the transformed image and a list of transforms.
@@ -450,16 +432,14 @@ def apply_transform_gens(transform_gens, img, depth_channel=None):
     for g in transform_gens:
         assert isinstance(g, TransformGen), g
 
+    check_dtype(img)
+
     tfms = []
     for g in transform_gens:
-        g.check_type(img)
         tfm = g.get_transform(img)
-
         assert isinstance(
             tfm, Transform
         ), "TransformGen {} must return an instance of Transform! Got {} instead".format(g, tfm)
         img = tfm.apply_image(img)
-        if depth_channel is not None:
-            depth_channel = tfm.apply_image(depth_channel)
         tfms.append(tfm)
-    return img, depth_channel, TransformList(tfms)
+    return img, TransformList(tfms)

@@ -33,7 +33,7 @@ class SizeMismatchError(ValueError):
     """
 
 
-def read_image(file_name, depth_file_name, format=None, use_depth=False, transforms=None):
+def read_image(file_name, format=None):
     """
     Read an image into the given format.
     Will apply rotation and flipping if the image has such exif information.
@@ -60,21 +60,14 @@ def read_image(file_name, depth_file_name, format=None, use_depth=False, transfo
             if format == "BGR":
                 conversion_format = "RGB"
             image = image.convert(conversion_format)
-        # image = np.asarray(image)
-        # # if format == "BGR":
-        # #     # flip channels if needed
-        # #     image = image[:, :, ::-1]
-        # # PIL squeezes out the channel dimension for "L", so make it HWC
-        # if format == "L":
-        #     image = np.expand_dims(image, -1)
-        if use_depth:
-            # Load depth image
-            depth_channel = Image.open(depth_file_name)
-            # depth_channel = np.expand_dims(depth_channel, -1)
-            # image = np.concatenate((image, depth_channel), axis=2)
-        else:
-            depth_channel = None
-        return image, depth_channel
+        image = np.asarray(image)
+        if format == "BGR":
+            # flip channels if needed
+            image = image[:, :, ::-1]
+        # PIL squeezes out the channel dimension for "L", so make it HWC
+        if format == "L":
+            image = np.expand_dims(image, -1)
+        return image
 
 
 def check_image_size(dataset_dict, image):
@@ -82,7 +75,7 @@ def check_image_size(dataset_dict, image):
     Raise an error if the image does not match the size specified in the dict.
     """
     if "width" in dataset_dict or "height" in dataset_dict:
-        image_wh = (image.size[0], image.size[1])
+        image_wh = (image.shape[1], image.shape[0])
         expected_wh = (dataset_dict["width"], dataset_dict["height"])
         if not image_wh == expected_wh:
             raise SizeMismatchError(
@@ -97,9 +90,9 @@ def check_image_size(dataset_dict, image):
 
     # To ensure bbox always remap to original image size
     if "width" not in dataset_dict:
-        dataset_dict["width"] = image.size[1]
+        dataset_dict["width"] = image.shape[1]
     if "height" not in dataset_dict:
-        dataset_dict["height"] = image.size[0]
+        dataset_dict["height"] = image.shape[0]
 
 
 def transform_proposals(dataset_dict, image_shape, transforms, min_box_side_len, proposal_topk):
@@ -184,9 +177,9 @@ def transform_instance_annotations(
             ]
         elif isinstance(segm, dict):
             # RLE
+            assert tuple(segm["size"]) == image_size
             mask = mask_util.decode(segm)
             mask = transforms.apply_segmentation(mask)
-            assert tuple(mask.shape[:2]) == image_size
             annotation["segmentation"] = mask
         else:
             raise ValueError(
@@ -457,7 +450,6 @@ def build_transform_gen(cfg, is_train):
     logger = logging.getLogger(__name__)
     tfm_gens = []
     tfm_gens.append(T.ResizeShortestEdge(min_size, max_size, sample_style))
-    tfm_gens.append(T.PILtoNdArray())
     if is_train:
         tfm_gens.append(T.RandomFlip())
         logger.info("TransformGens used in training: " + str(tfm_gens))

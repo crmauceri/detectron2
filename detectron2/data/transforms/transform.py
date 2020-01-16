@@ -5,9 +5,8 @@
 import numpy as np
 from fvcore.transforms.transform import HFlipTransform, NoOpTransform, Transform
 from PIL import Image
-__all__ = ["ExtentTransform", "ResizeTransform", "PILToTensor"]
 
-from torchvision.transforms import ToTensor
+__all__ = ["ExtentTransform", "ResizeTransform"]
 
 
 class ExtentTransform(Transform):
@@ -31,21 +30,16 @@ class ExtentTransform(Transform):
         super().__init__()
         self._set_attributes(locals())
 
-    @staticmethod
-    def check_type(img):
-        assert (isinstance(img, Image.Image))
-
     def apply_image(self, img, interp=None):
         h, w = self.output_size
-        assert(isinstance(img, Image.Image))
-        ret = img.transform(
+        ret = Image.fromarray(img).transform(
             size=(w, h),
             method=Image.EXTENT,
             data=self.src_rect,
             resample=interp if interp else self.interp,
             fill=self.fill,
         )
-        return ret
+        return np.asarray(ret)
 
     def apply_coords(self, coords):
         # Transform image center from source coordinates into output coordinates
@@ -82,31 +76,12 @@ class ResizeTransform(Transform):
         super().__init__()
         self._set_attributes(locals())
 
-    @staticmethod
-    def check_type(img):
-        assert (isinstance(img, Image.Image))
-
     def apply_image(self, img, interp=None):
-        assert (isinstance(img, Image.Image))
-        assert img.size == (self.h, self.w)
-
+        assert img.shape[:2] == (self.h, self.w)
+        pil_image = Image.fromarray(img)
         interp_method = interp if interp is not None else self.interp
-        # if len(img.shape) == 3:
-        #     pil_image = Image.fromarray(img[:, :, 0:3], 'RGB')
-        # else:
-        #     pil_image = Image.fromarray(img)
-        img = img.resize((self.new_w, self.new_h), interp_method)
-        # img = np.asarray(img)
-
-        # if len(img.shape)==3 and img.shape[2] == 4:
-        #     depth_image = Image.fromarray(img[:, :, 3], 'I')
-        #     depth_image = depth_image.resize((self.new_w, self.new_h), interp_method)
-        #     depth_image = np.expand_dims(depth_image, -1)
-        #     ret = np.concatenate((pil_image, depth_image), axis=2)
-        # else:
-        #     ret = pil_image
-        ret = img
-
+        pil_image = pil_image.resize((self.new_w, self.new_h), interp_method)
+        ret = np.asarray(pil_image)
         return ret
 
     def apply_coords(self, coords):
@@ -115,26 +90,8 @@ class ResizeTransform(Transform):
         return coords
 
     def apply_segmentation(self, segmentation):
-        seg_img = Image.fromarray(segmentation)
-        return self.apply_image(seg_img, interp=Image.NEAREST)
-
-class PILToTensor(Transform):
-    def __init__(self):
-        #self.transform = ToTensor()
-        self.transform = np.asarray
-
-    @staticmethod
-    def check_type(img):
-        assert (isinstance(img, Image.Image))
-
-    def apply_image(self, img):
-        return self.transform(img)
-
-    def apply_coords(self, coords):
-        return coords
-
-    def apply_segmentation(self, segmentation):
-        return self.transform(segmentation)
+        segmentation = self.apply_image(segmentation, interp=Image.NEAREST)
+        return segmentation
 
 
 def HFlip_rotated_box(transform, rotated_boxes):
