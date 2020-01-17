@@ -182,7 +182,7 @@ class DefaultPredictor:
         with torch.no_grad():  # https://github.com/sphinx-doc/sphinx/issues/4258
             original_image = rgbd['image']
             height, width = original_image.shape[:2]
-            image, transforms = self.transform_gen.get_transform(original_image)
+            transforms = self.transform_gen.get_transform(original_image)
             image = transforms.apply_image(original_image)
             image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
 
@@ -190,7 +190,7 @@ class DefaultPredictor:
 
             if self.cfg.INPUT.USE_DEPTH:
                 original_depth = rgbd['depth']
-                depth = transform_image(original_depth, transforms)
+                depth = transforms.apply_image(original_depth)
                 depth = torch.as_tensor(depth.astype("float32")).contiguous()
                 depth = depth.unsqueeze(0)
                 inputs['image'] = torch.cat((image, depth), 0)
