@@ -45,7 +45,7 @@ def read_image(file_name, depth_file_name, format=None, use_depth=False):
     Returns:
         ret (dict):
             image (np.ndarray): an HWC image
-            depth (np.ndarray): an HW image
+            depth (np.ndarray): an HW image or None
     """
     with PathManager.open(file_name, "rb") as f:
         image = Image.open(f)

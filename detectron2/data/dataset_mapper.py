@@ -81,9 +81,10 @@ class DatasetMapper:
         utils.check_image_size(dataset_dict, ret['image'])
 
         if "annotations" not in dataset_dict:
-            ret, transforms = T.apply_transform_gens(
-                ([self.crop_gen] if self.crop_gen else []) + self.tfm_gens, ret['image'], ret['depth']
-            )
+            ret['image'], transforms = T.apply_transform_gens(
+                ([self.crop_gen] if self.crop_gen else []) + self.tfm_gens, ret['image'])
+            if self.use_depth:
+                ret['depth'] = utils.transform_image(ret['depth'], transforms)
         else:
             # Crop around an instance if there are instances in the image.
             # USER: Remove if you don't use cropping

@@ -38,6 +38,7 @@ from detectron2.utils.collect_env import collect_env_info
 from detectron2.utils.env import seed_all_rng
 from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
 from detectron2.utils.logger import setup_logger
+from detectron2.data.detection_utils import transform_image
 
 from . import hooks
 from .train_loop import SimpleTrainer
@@ -168,24 +169,36 @@ class DefaultPredictor:
         self.input_format = cfg.INPUT.FORMAT
         assert self.input_format in ["RGB", "BGR"], self.input_format
 
-    def __call__(self, original_image):
+    def __call__(self, rgbd):
         """
         Args:
-            original_image (np.ndarray): an image of shape (H, W, C) (in BGR order).
+            rgbd (dict): (The output of utils.readImage)
+                image (np.ndarray): an HWC image
+                depth (np.ndarray): an HW image or None
 
         Returns:
             predictions (dict): the output of the model
         """
         with torch.no_grad():  # https://github.com/sphinx-doc/sphinx/issues/4258
-            # Apply pre-processing to image.
-            if self.input_format == "RGB":
-                # whether the model expects BGR inputs or RGB
-                original_image = original_image[:, :, ::-1]
+            original_image = rgbd['image']
             height, width = original_image.shape[:2]
-            image = self.transform_gen.get_transform(original_image).apply_image(original_image)
+            image, transforms = self.transform_gen.get_transform(original_image)
+            image = transforms.apply_image(original_image)
             image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
 
-            inputs = {"image": image, "height": height, "width": width}
+            inputs = {"height": height, "width": width}
+
+            if self.cfg.INPUT.USE_DEPTH:
+                original_depth = rgbd['depth']
+                depth = transform_image(original_depth, transforms)
+                depth = torch.as_tensor(depth.astype("float32")).contiguous()
+                depth = depth.unsqueeze(0)
+                inputs['image'] = torch.cat((image, depth), 0)
+            else:
+                inputs["image"] = torch.as_tensor(
+                   image.transpose(2, 0, 1).astype("float32")
+                ).contiguous()
+
             predictions = self.model([inputs])[0]
             return predictions
 
