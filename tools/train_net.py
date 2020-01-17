@@ -39,7 +39,7 @@ from detectron2.evaluation import (
 from detectron2.modeling import GeneralizedRCNNWithTTA
 
 for d in ["train", "val"]:
-    register_coco_instances("sunrgbd_{}".format(d), {}, "/Users/Mauceri/Workspace/SUNRGBD/annotations/instances_{}.json".format(d), "/Users/Mauceri/Workspace/", "/Users/Mauceri/Workspace/")
+        register_coco_instances("sunrgbd_{}".format(d), {}, "datasets/SUNRGBD/annotations/instances_{}.json".format(d), "datasets/SUNRGBD/images/", "datasets/SUNRGBD/images/")
 
 class Trainer(DefaultTrainer):
     """
