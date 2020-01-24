@@ -1,6 +1,7 @@
 # Convert a backbone trained with pytorch-deeplab-xception to detectron2 format
 import torch
 import re
+import pickle
 
 def convert_resnet(filepath):
     backbone = {k:v for k, v in torch.load(filepath)['state_dict'].items() if k.startswith('backbone')}
@@ -66,3 +67,22 @@ def convert_resnet(filepath):
             raise ValueError(k)
 
     return new_backbone
+
+
+if __name__ == "__main__":
+    # Arguments: infile : where the deeplab network is saved (with torch.save)
+    #            outfile : where the detectron network should be saved (with pickle.dump)
+
+    import sys
+
+    if(len(sys.argv)!=3):
+        print("Program requires two arguments: infile and outfile")
+        exit(1)
+
+    infile = sys.argv[1]
+    outfile = sys.argv[2]
+
+    backbone = convert_resnet(infile)
+
+    with open(outfile, 'wb') as f:
+        pickle.dump(backbone)
