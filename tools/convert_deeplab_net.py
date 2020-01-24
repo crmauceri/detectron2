@@ -88,6 +88,3 @@ if __name__ == "__main__":
 
     with open(outfile, 'wb') as f:
         pickle.dump(f, backbone)
-
-        'res5_2_branch2c_bn_beta'
-        'res_5_2_branch2b_beta'
