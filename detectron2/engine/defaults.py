@@ -195,10 +195,7 @@ class DefaultPredictor:
                 depth = depth.unsqueeze(0)
                 inputs['image'] = torch.cat((image, depth), 0)
             else:
-                inputs["image"] = torch.as_tensor(
-                   image.transpose(2, 0, 1).astype("float32")
-                ).contiguous()
-
+                inputs["image"] = image.contiguous()
             predictions = self.model([inputs])[0]
             return predictions
 
