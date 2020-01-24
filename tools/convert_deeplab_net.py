@@ -39,13 +39,13 @@ def convert_resnet(filepath):
             variable = match.group(5)
 
             if layer == 'downsample':
-                b = '2c'
-            elif branch == '1':
                 b = '1'
-            elif branch == '2':
+            elif branch == '1':
                 b = '2a'
-            elif branch == '3':
+            elif branch == '2':
                 b = '2b'
+            elif branch == '3':
+                b = '2c'
             else:
                 raise ValueError(k)
 
@@ -54,7 +54,7 @@ def convert_resnet(filepath):
             elif layer == 'downsample' and branch == '.0':
                 variable = 'w'
             elif layer in ['bn', 'downsample'] and variable == 'weight':
-                variable = 'gamma'
+                variable = 'bn_gamma'
             elif layer in ['bn', 'downsample'] and variable == 'bias':
                 variable = 'bn_beta'
             elif variable == 'num_batches_tracked':
@@ -87,4 +87,4 @@ if __name__ == "__main__":
     backbone = convert_resnet(infile)
 
     with open(outfile, 'wb') as f:
-        pickle.dump(f, backbone)
+        pickle.dump(backbone, f)
