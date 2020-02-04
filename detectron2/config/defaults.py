@@ -480,6 +480,13 @@ _C.MODEL.RESNETS.DEFORM_MODULATED = False
 # Number of groups in deformable conv.
 _C.MODEL.RESNETS.DEFORM_NUM_GROUPS = 1
 
+# ---------------------------------------------------------------------------- #
+# Deeplab Backbone options
+# These options apply to networks imported from saved pytorch-deeplab-xception models
+# ---------------------------------------------------------------------------- #
+_C.MODEL.DEEPLAB = CN()
+_C.MODEL.DEEPLAB.BACKBONE = "resnet"
+_C.MODEL.DEEPLAB.SYNC_BN = False
 
 # ---------------------------------------------------------------------------- #
 # Solver

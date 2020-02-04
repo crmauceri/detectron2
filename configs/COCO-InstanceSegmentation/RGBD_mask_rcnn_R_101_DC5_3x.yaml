@@ -1,4 +1,4 @@
-_BASE_: "../Base-RCNN-FPN.yaml"
+_BASE_: "../Base-RCNN-DilatedC5.yaml"
 MODEL:
   MASK_ON: True
   RESNETS:
@@ -11,4 +11,4 @@ SOLVER:
   MAX_ITER: 270000
 INPUT:
   USE_DEPTH: True
-OUTPUT_DIR: "./output/RGBD_mask_rcnn_R_101_FPN_3x"
+OUTPUT_DIR: "./output/RGBD_mask_rcnn_R_101_DC5_3x"

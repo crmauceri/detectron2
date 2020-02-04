@@ -1,8 +1,8 @@
-_BASE_: "../Base-RCNN-FPN.yaml"
+_BASE_: "../Base-RCNN-Deeplab-Resnet.yaml"
 MODEL:
   MASK_ON: True
   RESNETS:
-    DEPTH: 50
+    DEPTH: 101
   PIXEL_MEAN: [103.530, 116.280, 123.675, 18516.75]
   PIXEL_STD: [57.375, 57.120, 58.395, 8811.2]
 SOLVER:
@@ -14,3 +14,4 @@ INPUT:
 DATASETS:
   TRAIN: ("sunrgbd_train",)
   TEST: ("sunrgbd_val",)
+OUTPUT_DIR: "./output/RGBD_mask_rcnn_R_101_deeplab_sunrgbd"

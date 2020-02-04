@@ -3,33 +3,44 @@ import torch
 import re
 import pickle
 
-def convert_resnet(filepath):
-    backbone = {k:v for k, v in torch.load(filepath)['state_dict'].items() if k.startswith('backbone')}
-    p = re.compile('backbone\.layer([0-9])\.([0-9]+)\.(\w+)([\.0-3]+)\.(\w+)')
+def wrap_pytorch_resnet(filepath):
+    if torch.cuda.is_available():
+        network = torch.load(filepath, map_location=torch.device('gpu'))
+    else:
+        network = torch.load(filepath, map_location=torch.device('cpu'))
 
-    new_backbone = {}
-    for k, v in backbone.items():
+    new_resnet = {k.replace('backbone', 'backbone.model'):v for k,v in network['state_dict'].items()}
+    return {"__author__": "deeplab",
+            "model": new_resnet}
 
-        #First couple layers don't fit rules
-        if k == "backbone.conv1.weight":
-            new_backbone['conv1_w'] = v
+def convert_pytorch_resnet(resnet):
+    p = re.compile('layer([0-9])\.([0-9]+)\.(\w+)([\.0-3]+)\.(\w+)')
+
+    new_resnet = {}
+    for k, v in resnet.items():
+
+        # First couple layers don't fit rules
+        if k == "conv1.weight":
+            new_resnet['conv1_w'] = v
             continue
-        elif k == "backbone.bn1.running_mean":
-            new_backbone['res_conv1_bn_running_mean']= v
+        elif k == "bn1.running_mean":
+            new_resnet['res_conv1_bn_running_mean'] = v
             continue
-        elif k == "backbone.bn1.running_var":
-            new_backbone['res_conv1_bn_running_var']= v
+        elif k == "bn1.running_var":
+            new_resnet['res_conv1_bn_running_var'] = v
             continue
-        elif k == "backbone.bn1.weight":
-            new_backbone['res_conv1_bn_gamma']= v
+        elif k == "bn1.weight":
+            new_resnet['res_conv1_bn_gamma'] = v
             continue
-        elif k == "backbone.bn1.bias":
-            new_backbone['res_conv1_bn_beta']= v
+        elif k == "bn1.bias":
+            new_resnet['res_conv1_bn_beta'] = v
             continue
-        elif k == "backbone.bn1.num_batches_tracked":
+        elif k == "bn1.num_batches_tracked":
+            continue
+        elif k in ['fc.weight', 'fc.bias']:
             continue
 
-        #Rules start here
+        # Rules start here
         match = re.match(p, k)
         if match:
             index1 = match.group(1)
@@ -62,13 +73,121 @@ def convert_resnet(filepath):
             else:
                 variable = 'bn_{}'.format(variable)
 
-            new_k = 'res{}_{}_branch{}_{}'.format(int(index1)+1, index2, b, variable)
+            new_k = 'res{}_{}_branch{}_{}'.format(int(index1) + 1, index2, b, variable)
 
-            new_backbone[new_k] = v.cpu().numpy()
+            new_resnet[new_k] = v.cpu().numpy()
         else:
             raise ValueError(k)
 
-    return new_backbone
+    return new_resnet
+
+
+def convert_deeplab_resnet(filepath):
+    if torch.cuda.is_available():
+        network = torch.load(filepath, map_location=torch.device('gpu'))
+    else:
+        network = torch.load(filepath, map_location=torch.device('cpu'))
+
+    backbone = {k[9:]:v for k, v in network['state_dict'].items() if k.startswith('backbone')}
+    return convert_pytorch_resnet(backbone)
+
+
+def test_equivalence(cfg, infile, outfile):
+    from deeplab3.modeling.backbone.resnet import ResNet101
+    from detectron2.checkpoint.detection_checkpoint import  DetectionCheckpointer
+    from detectron2.engine import DefaultTrainer
+    import torch.nn as nn
+
+    #Deeplab
+    model = ResNet101(BatchNorm=nn.BatchNorm2d, pretrained=False, output_stride=16, channels=4)
+    model.eval()
+
+    if torch.cuda.is_available():
+        checkpoint = torch.load(infile, map_location=torch.device('gpu'))
+    else:
+        checkpoint = torch.load(infile, map_location=torch.device('cpu'))
+
+    state_dict = {k.replace('backbone.', ''):v for k, v in checkpoint['state_dict'].items() if 'backbone' in k}
+    model.load_state_dict(state_dict)
+
+    #Detectron2
+    model2 = DefaultTrainer.build_model(cfg)
+    model2.eval()
+    DetectionCheckpointer(model2, save_dir=outfile).resume_or_load(
+        cfg.MODEL.WEIGHTS)
+
+    #Check that the layers are identical
+    convs = []
+    downsample = []
+    bn = []
+    downsample_bn = []
+    for name, param in model.state_dict().items():
+        param_dict = {'name': name, 'param': param, 'size': param.size()}
+        if 'conv' in name:
+            convs.append(param_dict)
+        elif 'downsample.0' in name:
+            downsample.append(param_dict)
+        elif 'bn' in name:
+            bn.append(param_dict)
+        elif 'downsample.1' in name:
+            downsample_bn.append(param_dict)
+        else:
+            print(name)
+
+    convs2 = []
+    shortcut = []
+    bn2 = []
+    downsample_bn2 = []
+    for name, param in model2.backbone.state_dict().items():
+        param_dict = {'name': name, 'param': param, 'size': param.size()}
+        if 'conv' in name:
+            convs.append(param_dict)
+        elif 'downsample.0' in name:
+            downsample.append(param_dict)
+        elif 'bn' in name:
+            bn.append(param_dict)
+        elif 'downsample.1' in name:
+            downsample_bn.append(param_dict)
+        else:
+            print(name)
+
+    for p1, p2 in zip(convs, convs2):
+        print(p1['name'], p2['name'])
+        if(p1['size'] != p2['size']):
+            print(p1['size'], p2['size'])
+            raise ValueError('Sizes not equal')
+        assert(torch.all(torch.eq(p1['param'], p2['param'])))
+
+    for p1, p2 in zip(shortcut, downsample):
+        print(p1['name'], p2['name'])
+        if(p1['size'] != p2['size']):
+            print(p1['size'], p2['size'])
+            raise ValueError('Sizes not equal')
+        assert(torch.all(torch.eq(p1['param'], p2['param'])))
+
+    for p1, p2 in zip(bn, bn2):
+        print(p1['name'], p2['name'])
+        if(p1['size'] != p2['size']):
+            print(p1['size'], p2['size'])
+            raise ValueError('Sizes not equal')
+        assert(torch.all(torch.eq(p1['param'], p2['param'])))
+
+    for p1, p2 in zip(downsample_bn2, downsample_bn):
+        print(p1['name'], p2['name'])
+        if (p1['size'] != p2['size']):
+            print(p1['size'], p2['size'])
+            raise ValueError('Sizes not equal')
+        assert (torch.all(torch.eq(p1['param'], p2['param'])))
+
+    #Check that output is identical
+    input = torch.ones((1, 4, 640, 640), dtype=torch.float32)
+
+    output = model(input)
+    output2 = model2.backbone(input)
+
+    assert(torch.all(torch.eq(output[0], output2['res5'])))
+
+    print("Passed all tests")
 
 
 if __name__ == "__main__":
@@ -76,15 +195,24 @@ if __name__ == "__main__":
     #            outfile : where the detectron network should be saved (with pickle.dump)
 
     import sys
+    from detectron2.config import get_cfg
 
-    if(len(sys.argv)!=3):
-        print("Program requires two arguments: infile and outfile")
+    if(len(sys.argv)!=4):
+        print("Program requires three arguments: infile outfile config_file")
         exit(1)
 
     infile = sys.argv[1]
     outfile = sys.argv[2]
+    config_file = sys.argv[3]
 
-    backbone = convert_resnet(infile)
+    backbone = wrap_pytorch_resnet(infile)
 
     with open(outfile, 'wb') as f:
         pickle.dump(backbone, f)
+
+    cfg = get_cfg()
+    cfg.merge_from_file(config_file)
+    cfg.merge_from_list(['MODEL.DEVICE', 'cpu', 'MODEL.WEIGHTS', outfile])
+    cfg.freeze()
+
+    test_equivalence(cfg, infile, outfile)
