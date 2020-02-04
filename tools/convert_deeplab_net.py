@@ -3,6 +3,7 @@ import torch
 import re
 import pickle
 
+# The method wraps a deeplab save file with a few extra variables so that it can be loaded by the detectron2 checkpointer
 def wrap_pytorch_resnet(filepath):
     if torch.cuda.is_available():
         network = torch.load(filepath, map_location=torch.device('gpu'))
@@ -13,7 +14,17 @@ def wrap_pytorch_resnet(filepath):
     return {"__author__": "deeplab",
             "model": new_resnet}
 
-def convert_pytorch_resnet(resnet):
+# This method changes the names of the deeplab layers to match the format of a saved detectron2 resnet with dilation
+# For best results use the DC5_3x config file
+# TODO Issues: The weights match between the two models but stride length differs leading to different results
+def convert_pytorch_resnet(filepath):
+    if torch.cuda.is_available():
+        network = torch.load(filepath, map_location=torch.device('gpu'))
+    else:
+        network = torch.load(filepath, map_location=torch.device('cpu'))
+
+    resnet = {k[9:]:v for k, v in network['state_dict'].items() if k.startswith('backbone')}
+
     p = re.compile('layer([0-9])\.([0-9]+)\.(\w+)([\.0-3]+)\.(\w+)')
 
     new_resnet = {}
@@ -81,17 +92,7 @@ def convert_pytorch_resnet(resnet):
 
     return new_resnet
 
-
-def convert_deeplab_resnet(filepath):
-    if torch.cuda.is_available():
-        network = torch.load(filepath, map_location=torch.device('gpu'))
-    else:
-        network = torch.load(filepath, map_location=torch.device('cpu'))
-
-    backbone = {k[9:]:v for k, v in network['state_dict'].items() if k.startswith('backbone')}
-    return convert_pytorch_resnet(backbone)
-
-
+# Test loads both the original deeplab model and the converted detectron model and checks both structural equivalence and output
 def test_equivalence(cfg, infile, outfile):
     from deeplab3.modeling.backbone.resnet import ResNet101
     from detectron2.checkpoint.detection_checkpoint import  DetectionCheckpointer

@@ -5,6 +5,7 @@ MODEL:
     DEPTH: 101
   PIXEL_MEAN: [103.530, 116.280, 123.675, 18516.75]
   PIXEL_STD: [57.375, 57.120, 58.395, 8811.2]
+  WEIGHTS: './pretrained/deeplab_resnet_coco.pkl'
 SOLVER:
   STEPS: (210000, 250000)
   MAX_ITER: 270000
