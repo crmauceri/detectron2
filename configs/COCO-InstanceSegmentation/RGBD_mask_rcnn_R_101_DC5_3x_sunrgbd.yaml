@@ -1,7 +1,4 @@
-# Train from scratch on coco with synthetic depth
-# Use as pretraining for
-#  - RGBD_mask_rcnn_R_101_DC5_3x_sunrgbd.yaml
-#  - Transfer to deeplab
+# Finetune RGBD_mask_rcnn_R_101_DC5_3x on SUNRGBD
 
 _BASE_: "../Base-RCNN-DilatedC5.yaml"
 MODEL:
@@ -10,12 +7,14 @@ MODEL:
     DEPTH: 101
   PIXEL_MEAN: [103.530, 116.280, 123.675, 54.528]
   PIXEL_STD: [57.375, 57.120, 58.395, 28.416]
-  WEIGHTS: ""
-  BACKBONE:
-    FREEZE_AT: 0
+  WEIGHTS: "./output/RGBD_mask_rcnn_R_101_DC5_3x/model_final.pth"
 SOLVER:
   STEPS: (210000, 250000)
   MAX_ITER: 270000
 INPUT:
   USE_DEPTH: True
-OUTPUT_DIR: "./output/RGBD_mask_rcnn_R_101_DC5_3x"
+  MASK_FORMAT: "bitmask"
+DATASETS:
+  TRAIN: ("sunrgbd_train",)
+  TEST: ("sunrgbd_val",)
+OUTPUT_DIR: "./output/RGBD_mask_rcnn_R_101_DC5_3x_sunrgbd"

@@ -1,3 +1,5 @@
+# Transfer weights from deeplab model and finetune on SUNRGBD
+
 _BASE_: "../Base-RCNN-Deeplab-Resnet.yaml"
 MODEL:
   MASK_ON: True
