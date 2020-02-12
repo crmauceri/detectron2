@@ -493,6 +493,9 @@ _C.MODEL.DEEPLAB.SYNC_BN = False
 # ---------------------------------------------------------------------------- #
 _C.SOLVER = CN()
 
+# Which optimizer to use [adamw, sgd]
+_C.SOLVER.OPTIMIZER = "adamw"
+
 # See detectron2/solver/build.py for LR scheduler options
 _C.SOLVER.LR_SCHEDULER_NAME = "WarmupMultiStepLR"
 

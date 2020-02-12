@@ -28,7 +28,12 @@ def build_optimizer(cfg: CfgNode, model: torch.nn.Module) -> torch.optim.Optimiz
             weight_decay = cfg.SOLVER.WEIGHT_DECAY_BIAS
         params += [{"params": [value], "lr": lr, "weight_decay": weight_decay}]
 
-    optimizer = torch.optim.SGD(params, lr, momentum=cfg.SOLVER.MOMENTUM)
+    if cfg.SOLVER.OPTIMIZER == "sgd":
+        optimizer = torch.optim.SGD(params, lr, momentum=cfg.SOLVER.MOMENTUM)
+    elif cfg.SOLVER.OPTIMIZER == "adamw":
+        optimizer = torch.optim.AdamW(params, lr)
+    else:
+        raise ValueError("Optimizer type not implemented: {}".format(cfg.SOLVER.OPTIMIZER))
     return optimizer
 
 
