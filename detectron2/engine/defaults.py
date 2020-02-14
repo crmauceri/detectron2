@@ -264,17 +264,25 @@ class DefaultTrainer(SimpleTrainer):
 
         if cfg.SOLVER.OPTIMIZER == "sgd":
             self.scheduler = self.build_lr_scheduler(cfg, optimizer)
+            # Assume no other objects need to be checkpointed.
+            # We can later make it checkpoint the stateful hooks
+            self.checkpointer = DetectionCheckpointer(
+                # Assume you want to save checkpoints together with logs/statistics
+                model,
+                cfg.OUTPUT_DIR,
+                optimizer=optimizer,
+                scheduler=self.scheduler,
+            )
         else:
             self.scheduler = None
-        # Assume no other objects need to be checkpointed.
-        # We can later make it checkpoint the stateful hooks
-        self.checkpointer = DetectionCheckpointer(
-            # Assume you want to save checkpoints together with logs/statistics
-            model,
-            cfg.OUTPUT_DIR,
-            optimizer=optimizer,
-            scheduler=self.scheduler,
-        )
+            # Assume no other objects need to be checkpointed.
+            # We can later make it checkpoint the stateful hooks
+            self.checkpointer = DetectionCheckpointer(
+                # Assume you want to save checkpoints together with logs/statistics
+                model,
+                cfg.OUTPUT_DIR,
+                optimizer=optimizer
+            )
         self.start_iter = 0
         self.max_iter = cfg.SOLVER.MAX_ITER
         self.cfg = cfg
@@ -311,35 +319,20 @@ class DefaultTrainer(SimpleTrainer):
         cfg.defrost()
         cfg.DATALOADER.NUM_WORKERS = 0  # save some memory and time for PreciseBN
 
-        if self.scheduler is not None:
-            ret = [
-                hooks.IterationTimer(),
-                hooks.LRScheduler(self.optimizer, self.scheduler),
-                hooks.PreciseBN(
-                    # Run at the same freq as (but before) evaluation.
-                    cfg.TEST.EVAL_PERIOD,
-                    self.model,
-                    # Build a new data loader to not affect training
-                    self.build_train_loader(cfg),
-                    cfg.TEST.PRECISE_BN.NUM_ITER,
-                )
-                if cfg.TEST.PRECISE_BN.ENABLED and get_bn_modules(self.model)
-                else None,
-            ]
-        else:
-            ret = [
-                hooks.IterationTimer(),
-                hooks.PreciseBN(
-                    # Run at the same freq as (but before) evaluation.
-                    cfg.TEST.EVAL_PERIOD,
-                    self.model,
-                    # Build a new data loader to not affect training
-                    self.build_train_loader(cfg),
-                    cfg.TEST.PRECISE_BN.NUM_ITER,
-                )
-                if cfg.TEST.PRECISE_BN.ENABLED and get_bn_modules(self.model)
-                else None,
-            ]
+        ret = [
+            hooks.IterationTimer(),
+            hooks.LRScheduler(self.optimizer, self.scheduler),
+            hooks.PreciseBN(
+                # Run at the same freq as (but before) evaluation.
+                cfg.TEST.EVAL_PERIOD,
+                self.model,
+                # Build a new data loader to not affect training
+                self.build_train_loader(cfg),
+                cfg.TEST.PRECISE_BN.NUM_ITER,
+            )
+            if cfg.TEST.PRECISE_BN.ENABLED and get_bn_modules(self.model)
+            else None,
+        ]
 
         # Do PreciseBN before checkpointer, because it updates the model and need to
         # be saved by checkpointer.
