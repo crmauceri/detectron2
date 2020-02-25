@@ -3,7 +3,10 @@ MODEL:
   BACKBONE:
     NAME: "build_deeplab_backbone"
   DEEPLAB:
-    BACKBONE: "resnet"
+    MODEL:
+      BACKBONE: "resnet"
+      OUT_STRIDE: 16
+      INPUT_CHANNELS: 3
   RPN:
     IN_FEATURES: ["res5"]
     PRE_NMS_TOPK_TEST: 6000

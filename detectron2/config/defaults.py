@@ -1,5 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 from .config import CfgNode as CN
+from deeplab3.config.defaults import get_cfg_defaults
 
 # -----------------------------------------------------------------------------
 # Convention about Training / Test specific parameters
@@ -484,9 +485,7 @@ _C.MODEL.RESNETS.DEFORM_NUM_GROUPS = 1
 # Deeplab Backbone options
 # These options apply to networks imported from saved pytorch-deeplab-xception models
 # ---------------------------------------------------------------------------- #
-_C.MODEL.DEEPLAB = CN()
-_C.MODEL.DEEPLAB.BACKBONE = "resnet"
-_C.MODEL.DEEPLAB.SYNC_BN = False
+_C.MODEL.DEEPLAB = CN(get_cfg_defaults())
 
 # ---------------------------------------------------------------------------- #
 # Solver

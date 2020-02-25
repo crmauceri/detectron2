@@ -17,17 +17,12 @@ class DeeplabBackbone(Backbone):
     def __init__(self, cfg):
         super().__init__()
 
-        if cfg.MODEL.DEEPLAB.BACKBONE == 'drn':
-            output_stride = 8
-        else:
-            output_stride = 16
-
-        if cfg.MODEL.DEEPLAB.SYNC_BN == True:
+        if cfg.MODEL.DEEPLAB.MODEL.SYNC_BN == True:
             BatchNorm = SynchronizedBatchNorm2d
         else:
             BatchNorm = nn.BatchNorm2d
 
-        self.model = deeplab_build_backbone(cfg, BatchNorm, name=cfg.MODEL.DEEPLAB.BACKBONE)
+        self.model = deeplab_build_backbone(cfg.MODEL.DEEPLAB, BatchNorm)
 
     def forward(self, input):
         return self.model(input)
