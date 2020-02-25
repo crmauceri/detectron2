@@ -19,7 +19,7 @@ def wrap_pytorch_resnet(filepath):
 # TODO Issues: The weights match between the two models but stride length differs leading to different results
 def convert_pytorch_resnet(filepath):
     if torch.cuda.is_available():
-        network = torch.load(filepath, map_location=torch.device('gpu'))
+        network = torch.load(filepath, map_location=torch.device('cuda'))
     else:
         network = torch.load(filepath, map_location=torch.device('cpu'))
 
@@ -100,11 +100,11 @@ def test_equivalence(cfg, infile, outfile):
     import torch.nn as nn
 
     #Deeplab
-    model = ResNet101(cfg, BatchNorm=nn.BatchNorm2d)
+    model = ResNet101(cfg.MODEL.DEEPLAB, BatchNorm=nn.BatchNorm2d)
     model.eval()
 
     if torch.cuda.is_available():
-        checkpoint = torch.load(infile, map_location=torch.device('gpu'))
+        checkpoint = torch.load(infile, map_location=torch.device('cuda'))
     else:
         checkpoint = torch.load(infile, map_location=torch.device('cpu'))
 
@@ -186,7 +186,8 @@ def test_equivalence(cfg, infile, outfile):
     output = model(input)
     output2 = model2.backbone(input)
 
-    assert(torch.all(torch.eq(output[0], output2['res5'])))
+    assert(torch.all(torch.eq(output[0], output2[0])))
+    assert (torch.all(torch.eq(output[1], output2[1])))
 
     print("Passed all tests")
 
