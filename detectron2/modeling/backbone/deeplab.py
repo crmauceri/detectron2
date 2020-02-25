@@ -27,7 +27,7 @@ class DeeplabBackbone(Backbone):
         else:
             BatchNorm = nn.BatchNorm2d
 
-        self.model = deeplab_build_backbone(cfg.MODEL.DEEPLAB.BACKBONE, output_stride, BatchNorm, cfg.INPUT.USE_DEPTH, use_deeplab_format=False)
+        self.model = deeplab_build_backbone(cfg, BatchNorm)
 
     def forward(self, input):
         return self.model(input)
