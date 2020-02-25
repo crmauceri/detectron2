@@ -6,7 +6,7 @@ import pickle
 # The method wraps a deeplab save file with a few extra variables so that it can be loaded by the detectron2 checkpointer
 def wrap_pytorch_resnet(filepath):
     if torch.cuda.is_available():
-        network = torch.load(filepath, map_location=torch.device('gpu'))
+        network = torch.load(filepath, map_location=torch.device('cuda'))
     else:
         network = torch.load(filepath, map_location=torch.device('cpu'))
 
@@ -100,7 +100,7 @@ def test_equivalence(cfg, infile, outfile):
     import torch.nn as nn
 
     #Deeplab
-    model = ResNet101(BatchNorm=nn.BatchNorm2d, pretrained=False, output_stride=16, channels=4)
+    model = ResNet101(cfg, BatchNorm=nn.BatchNorm2d)
     model.eval()
 
     if torch.cuda.is_available():
