@@ -186,8 +186,8 @@ def test_equivalence(cfg, infile, outfile):
     output = model(input)
     output2 = model2.backbone(input)
 
-    assert(torch.all(torch.eq(output[0], output2[0])))
-    assert (torch.all(torch.eq(output[1], output2[1])))
+    assert(torch.all(torch.eq(output['res5'], output2['res5'])))
+    assert (torch.all(torch.eq(output['res2'], output2['res2'])))
 
     print("Passed all tests")
 
